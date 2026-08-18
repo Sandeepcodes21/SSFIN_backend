@@ -10,23 +10,55 @@ import carRoutes from './routes/cars.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 
 // ============================================
-// CORS - Allow all origins
+// CORS - CORRECT CONFIGURATION
 // ============================================
+const allowedOrigins = [
+  'https://ssfinworld.netlify.app',
+  'https://ssfinworld-carhub.netlify.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
 app.use(cors({
-  origin: '*',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Allow specific origins
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked:', origin);
+      callback(null, true); // Temporarily allow all
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400
 }));
+
+// Handle preflight requests
+app.options('*', cors());
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// ============================================
+// Request Logger
+// ============================================
+app.use((req, res, next) => {
+  console.log(`📝 ${req.method} ${req.url}`);
+  next();
+});
 
 // ============================================
 // Routes
@@ -42,12 +74,13 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    mongodb: process.env.MONGODB_URI ? '✅ configured' : '❌ not configured'
+    mongodb: process.env.MONGODB_URI ? '✅ configured' : '❌ not configured',
+    allowedOrigins: allowedOrigins
   });
 });
 
 // ============================================
-// Root route - For testing
+// Root route
 // ============================================
 app.get('/', (req, res) => {
   res.json({
@@ -91,6 +124,6 @@ if (process.env.MONGODB_URI) {
 }
 
 // ============================================
-// Export for Vercel (IMPORTANT!)
+// Export for Vercel
 // ============================================
 export default app;
