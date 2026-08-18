@@ -15,7 +15,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const app = express();
 
 // ============================================
-// CORS - CORRECT CONFIGURATION
+// CORS - COMPLETE FIX FOR NETLIFY
 // ============================================
 const allowedOrigins = [
   'https://ssfinworld.netlify.app',
@@ -24,30 +24,30 @@ const allowedOrigins = [
   'http://localhost:3000'
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // Allow specific origins
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      console.log('❌ CORS blocked:', origin);
-      callback(null, true); // Temporarily allow all
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400
-}));
-
-// Handle preflight requests
-app.options('*', cors());
+// CORS middleware - Custom
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Allow specific origins or all in development
+  if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    // For testing - allow all (remove in production)
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.header('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
+  
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -74,8 +74,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    mongodb: process.env.MONGODB_URI ? '✅ configured' : '❌ not configured',
-    allowedOrigins: allowedOrigins
+    mongodb: process.env.MONGODB_URI ? '✅ configured' : '❌ not configured'
   });
 });
 
