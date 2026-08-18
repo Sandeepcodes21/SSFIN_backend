@@ -20,10 +20,8 @@ const PORT = process.env.PORT || 5000;
 // CORS - Allow Netlify Frontend URL
 // ============================================
 const allowedOrigins = [
-  'https://ssfinworld-carhub.netlify.app',
   'https://ssfinworld.netlify.app/',
-  'http://localhost:5173',
-  'http://localhost:3000'
+  
 ];
 
 app.use(cors({
